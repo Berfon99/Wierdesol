@@ -44,9 +44,9 @@ class EcsWidget : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_layout)
 
-        // Create an Intent to launch MainActivity when the widget is clicked
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        // Create an Intent to refresh the widget when it is clicked
+        val intent = Intent(context, WidgetRefreshReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         views.setOnClickPendingIntent(views.getLayoutId(), pendingIntent)
 
         // Set the loading text
@@ -146,8 +146,13 @@ class EcsWidget : AppWidgetProvider() {
 
     companion object {
         fun updateWidget(context: Context) {
-            val intent = Intent(context, WidgetUpdateReceiver::class.java)
-            context.sendBroadcast(intent)
+            val intent = Intent(context, EcsWidget::class.java)
+            val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, EcsWidget::class.java))
+            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            for (appWidgetId in ids) {
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            }
         }
     }
 
@@ -160,6 +165,12 @@ class EcsWidget : AppWidgetProvider() {
 }
 
 class WidgetUpdateReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        EcsWidget.updateWidget(context)
+    }
+}
+
+class WidgetRefreshReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         EcsWidget.updateWidget(context)
     }
