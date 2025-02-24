@@ -129,6 +129,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        // Log the size of headersets
+        Timber.d("headersets size: ${data.headersets.size}")
+
+        // Log the size of packets in the first headerset
+        if (data.headersets.isNotEmpty()) {
+            Timber.d("packets size in first headerset: ${data.headersets[0].packets.size}")
+
+            // Log the size of fieldValues in each packet
+            data.headersets[0].packets.forEachIndexed { index, packet ->
+                Timber.d("fieldValues size in packet $index: ${packet.fieldValues.size}")
+            }
+        }
+
         // List of sensors to retrieve with their indexes
         val sensors = mapOf(
             "ECS" to 4, // Temperature Sensor 5 -> ECS
@@ -139,40 +152,43 @@ class MainActivity : AppCompatActivity() {
             "Piscine" to 10 // field_index 10
         )
 
-        // Search for values
-        val sensorValues = data.headersets
-            .flatMap { it.packets }
-            .flatMap { it.fieldValues }
-            .associateBy { it.fieldIndex }
+        // Find the packet with the correct data (packet 1 in this case)
+        val correctPacket = data.headersets[0].packets.getOrNull(1)
 
-        // Build the display of retrieved values
-        val leftSensorList = listOf(
-            sensors["Capteurs"]?.let { index ->
-                Sensor("Capteurs", sensorValues[index]?.value ?: getString(R.string.value_not_available))
-            } ?: Sensor("Capteurs", getString(R.string.value_not_available)),
-            sensors["Piscine"]?.let { index ->
-                Sensor("Piscine", sensorValues[index]?.value ?: getString(R.string.value_not_available))
-            } ?: Sensor("Piscine", getString(R.string.value_not_available)),
-            sensors["Extérieur"]?.let { index ->
-                Sensor("Extérieur", sensorValues[index]?.value ?: getString(R.string.value_not_available))
-            } ?: Sensor("Extérieur", getString(R.string.value_not_available))
-        )
+        if (correctPacket != null) {
+            // Search for values in the correct packet
+            val sensorValues = correctPacket.fieldValues.associateBy { it.fieldIndex }
 
-        val rightSensorList = listOf(
-            sensors["ECS"]?.let { index ->
-                Sensor("ECS", sensorValues[index]?.value ?: getString(R.string.value_not_available))
-            } ?: Sensor("ECS", getString(R.string.value_not_available)),
-            sensors["Tampon"]?.let { index ->
-                Sensor("Tampon", sensorValues[index]?.value ?: getString(R.string.value_not_available))
-            } ?: Sensor("Tampon", getString(R.string.value_not_available)),
-            sensors["Intérieur"]?.let { index ->
-                Sensor("Intérieur", sensorValues[index]?.value ?: getString(R.string.value_not_available))
-            } ?: Sensor("Intérieur", getString(R.string.value_not_available))
-        )
+            // Log the first 10 fieldValues
+            Timber.d("First 10 fieldValues:")
+            sensorValues.entries.take(10).forEach { entry ->
+                Timber.d("fieldIndex: ${entry.key}, value: ${entry.value.value}")
+            }
 
-        // Update the RecyclerViews
-        updateSensorLists(leftSensorList, rightSensorList)
-        Timber.d(getString(R.string.data_retrieved, (leftSensorList + rightSensorList).joinToString("\n")))
+            // Build the display of retrieved values
+            val leftSensorList = mutableListOf<Sensor>()
+            val rightSensorList = mutableListOf<Sensor>()
+
+            for ((name, index) in sensors) {
+                val value = sensorValues[index]?.value ?: getString(R.string.value_not_available)
+                val sensor = Sensor(name, value)
+                when (name) {
+                    "Capteurs", "Piscine", "Extérieur" -> leftSensorList.add(sensor)
+                    "ECS", "Tampon", "Intérieur" -> rightSensorList.add(sensor)
+                }
+            }
+
+            // Update the RecyclerViews
+            updateSensorLists(leftSensorList, rightSensorList)
+            Timber.d(
+                getString(
+                    R.string.data_retrieved,
+                    (leftSensorList + rightSensorList).joinToString("\n")
+                )
+            )
+        } else {
+            Timber.e("Correct packet not found")
+        }
     }
     private fun updateSensorLists(leftSensorList: List<Sensor>, rightSensorList: List<Sensor>) {
         leftSensorAdapter.sensors = leftSensorList
