@@ -19,5 +19,7 @@
     <string name="refresh_rate_summary">Set the data refresh rate in minutes</string>
     <string name="title_activity_settings">Settings</string>
     <string name="schema">SCHEMA</string>
-
+    <string name="loading">Loading...</string>
+    <string name="ecs_temperature">ECS</string>
+    <string name="error_retrieving_data">Error</string>
 </resources>
