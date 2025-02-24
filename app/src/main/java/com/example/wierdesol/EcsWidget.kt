@@ -11,6 +11,8 @@ import android.content.SharedPreferences
 import android.os.SystemClock
 import android.preference.PreferenceManager
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.green
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,8 +69,8 @@ class EcsWidget : AppWidgetProvider() {
         coroutineScope.launch {
             fetchData { data ->
                 if (data != null) {
-                    val ecsValue = getEcsValue(data)
-                    updateWidgetWithEcsValue(context, appWidgetManager, appWidgetId, ecsValue)
+                    val (ecsValue, temperature) = getEcsValue(data)
+                    updateWidgetWithEcsValue(context, appWidgetManager, appWidgetId, ecsValue, temperature)
                 } else {
                     updateWidgetWithError(context, appWidgetManager, appWidgetId)
                 }
@@ -96,24 +98,37 @@ class EcsWidget : AppWidgetProvider() {
         })
     }
 
-    private fun getEcsValue(data: ResolResponse): String {
+    private fun getEcsValue(data: ResolResponse): Pair<String, Double> {
         val correctPacket = data.headersets[0].packets.getOrNull(1)
         if (correctPacket != null) {
             val sensorValues = correctPacket.fieldValues.associateBy { it.fieldIndex }
             val ecsValue = sensorValues[4]?.value ?: "N/A"
-            return "$ecsValue°C"
+            val temperature = ecsValue.toDoubleOrNull() ?: 0.0
+            return Pair("$ecsValue°C", temperature)
         }
-        return "N/A"
+        return Pair("N/A", 0.0)
+    }
+
+    private fun getBackgroundColor(temperature: Double, context: Context): Int {
+        return when {
+            temperature > 41 -> ContextCompat.getColor(context, R.color.green)
+            temperature >= 37 -> ContextCompat.getColor(context, R.color.orange)
+            else -> ContextCompat.getColor(context, R.color.black)
+        }
     }
 
     private fun updateWidgetWithEcsValue(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
-        ecsValue: String
+        ecsValue: String,
+        temperature: Double
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_layout)
         views.setTextViewText(R.id.widget_ecs_value, ecsValue)
+        val backgroundColor = getBackgroundColor(temperature, context)
+        // Corrected line:
+        views.setInt(R.id.widget_layout, "setBackgroundColor", backgroundColor)
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
@@ -124,6 +139,9 @@ class EcsWidget : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_layout)
         views.setTextViewText(R.id.widget_ecs_value, context.getString(R.string.error_retrieving_data))
+        val backgroundColor = ContextCompat.getColor(context, R.color.black)
+        // Corrected line:
+        views.setInt(R.id.widget_layout, "setBackgroundColor", backgroundColor)
         appWidgetManager.updateAppWidget(appWidgetId, views)
         scheduleWidgetUpdate(context)
     }
