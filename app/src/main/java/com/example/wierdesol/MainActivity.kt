@@ -50,9 +50,6 @@ class MainActivity : AppCompatActivity() {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Initialize the link and make it clickable
-        setupLinkTextView()
-
         // Initialize the RecyclerViews
         leftRecyclerView.layoutManager = LinearLayoutManager(this)
         rightRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -68,9 +65,12 @@ class MainActivity : AppCompatActivity() {
 
         // Start fetching data periodically
         fetchDataPeriodically()
+
+        // Initialize the link and make it clickable
+        setupLinkTextView()
     }
     private fun setupLinkTextView() {
-        val fullText = getString(R.string.check_url)
+        val fullText = getString(R.string.schema)
         val spannableString = SpannableString(fullText)
 
         val clickableSpan = object : ClickableSpan() {
@@ -85,7 +85,6 @@ class MainActivity : AppCompatActivity() {
         binding.linkTextView.text = spannableString
         binding.linkTextView.movementMethod = LinkMovementMethod.getInstance()
     }
-
     private fun fetchDataPeriodically() {
         coroutineScope.launch {
             while (true) {
@@ -176,7 +175,11 @@ class MainActivity : AppCompatActivity() {
             val rightSensorList = mutableListOf<Sensor>()
 
             for ((name, index) in sensors) {
-                val value = sensorValues[index]?.value ?: getString(R.string.value_not_available)
+                var value = sensorValues[index]?.value ?: getString(R.string.value_not_available)
+                // Add "°C" if the sensor is a temperature sensor
+                if (name == "ECS" || name == "Capteurs" || name == "Tampon" || name == "Intérieur" || name == "Extérieur" || name == "Piscine") {
+                    value += "°C"
+                }
                 val sensor = Sensor(name, value)
                 when (name) {
                     "Capteurs", "Piscine", "Extérieur" -> leftSensorList.add(sensor)
