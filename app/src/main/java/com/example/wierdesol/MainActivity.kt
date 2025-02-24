@@ -1,12 +1,16 @@
 package com.example.wierdesol
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
+import android.preference.PreferenceManager
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -29,11 +33,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var leftSensorAdapter: SensorAdapter
     private lateinit var rightSensorAdapter: SensorAdapter
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
+    private lateinit var sharedPreferences: SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
 
         leftRecyclerView = binding.leftRecyclerView
         rightRecyclerView = binding.rightRecyclerView
@@ -63,7 +69,6 @@ class MainActivity : AppCompatActivity() {
         // Start fetching data periodically
         fetchDataPeriodically()
     }
-
     private fun setupLinkTextView() {
         val fullText = getString(R.string.check_url)
         val spannableString = SpannableString(fullText)
@@ -85,11 +90,12 @@ class MainActivity : AppCompatActivity() {
         coroutineScope.launch {
             while (true) {
                 fetchDataAndRefresh()
-                delay(10000) // Wait for 10 seconds
+                val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
+                val refreshRateMillis = refreshRateMinutes * 60 * 1000
+                delay(refreshRateMillis)
             }
         }
     }
-
     private fun fetchDataAndRefresh() {
         fetchData { data ->
             if (data != null) {
@@ -195,5 +201,19 @@ class MainActivity : AppCompatActivity() {
         rightSensorAdapter.sensors = rightSensorList
         leftSensorAdapter.notifyDataSetChanged()
         rightSensorAdapter.notifyDataSetChanged()
+    }
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 }

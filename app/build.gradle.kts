@@ -53,4 +53,6 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.1.5") // Updated version
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1") // Updated version
     implementation("com.squareup.retrofit2:converter-scalars:2.9.0")
+    implementation("androidx.preference:preference-ktx:1.2.1")
+
 }
