@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Wierdesol</string>
+    <string name="loading_message">Chargement#8230</string>
+    <string name="waiting_for_temperature">En attente de la température...</string>
+    <string name="check_url">Vérifier l\'URL</string>
+    <string name="sensor_name">Sensor Name</string>
+    <string name="sensor_value">Sensor Value</string>
+    <string name="value_not_available">Valeur non disponible</string>
+    <string name="data_retrieval_error">Erreur de récupération des données</string>
+    <string name="data_not_available">Données non disponibles, prochaine tentative dans 10 secondes...</string>
+    <string name="new_data_analysis_attempt">Nouvelle tentative d\'analyse des données</string>
+    <string name="data_received">Données reçues: %s</string>
+    <string name="error">Erreur: %s</string>
+    <string name="connection_failed">Échec de la connexion</string>
+    <string name="data_retrieved">Données récupérées:\n%s</string>
+    <string name="refresh">Refresh</string>
+</resources>
