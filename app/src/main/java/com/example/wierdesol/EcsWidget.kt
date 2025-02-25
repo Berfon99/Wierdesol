@@ -27,6 +27,10 @@ class EcsWidget : AppWidgetProvider() {
         Timber.d("onUpdate called")
         // No need to update the widget here anymore
         scheduleWidgetUpdate(context)
+        // Trigger an immediate update for each widget instance
+        for (appWidgetId in appWidgetIds) {
+            triggerImmediateUpdate(context)
+        }
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -38,6 +42,21 @@ class EcsWidget : AppWidgetProvider() {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
         Timber.d("onAppWidgetOptionsChanged called")
         // No need to update the widget here anymore
+        triggerImmediateUpdate(context)
+    }
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        Timber.d("onEnabled called")
+        // Trigger an immediate update when the first widget is added
+        triggerImmediateUpdate(context)
+    }
+
+    private fun triggerImmediateUpdate(context: Context) {
+        Timber.d("triggerImmediateUpdate called")
+        val intent = Intent(context, WidgetUpdateReceiver::class.java)
+        intent.action = "com.example.wierdesol.WIDGET_UPDATE"
+        context.sendBroadcast(intent)
     }
 
     private fun scheduleWidgetUpdate(context: Context) {
