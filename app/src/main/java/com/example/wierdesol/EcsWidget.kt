@@ -8,11 +8,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.SystemClock
 import android.preference.PreferenceManager
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.green
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -44,18 +44,29 @@ class EcsWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
+        Timber.d("updateAppWidget called for appWidgetId: $appWidgetId")
+
         val views = RemoteViews(context.packageName, R.layout.widget_layout)
 
-        // Create an Intent to refresh the widget when it is clicked
-        val intent = Intent(context, WidgetRefreshReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-        views.setOnClickPendingIntent(views.getLayoutId(), pendingIntent)
+        // Create an Intent to launch the app
+        val intent = Intent(context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Set the PendingIntent on the Button
+        views.setOnClickPendingIntent(R.id.widget_click_button, pendingIntent)
+        Timber.d("PendingIntent set on widget_click_button")
 
         // Set the loading text
         views.setTextViewText(R.id.widget_ecs_value, context.getString(R.string.loading))
 
         // Instruct the widget manager to update the widget
         appWidgetManager.updateAppWidget(appWidgetId, views)
+        Timber.d("appWidgetManager.updateAppWidget called")
 
         // Fetch the data and update the widget
         fetchDataAndUpdateWidget(context, appWidgetManager, appWidgetId)
@@ -127,7 +138,6 @@ class EcsWidget : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.widget_layout)
         views.setTextViewText(R.id.widget_ecs_value, ecsValue)
         val backgroundColor = getBackgroundColor(temperature, context)
-        // Corrected line:
         views.setInt(R.id.widget_layout, "setBackgroundColor", backgroundColor)
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
@@ -140,7 +150,6 @@ class EcsWidget : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.widget_layout)
         views.setTextViewText(R.id.widget_ecs_value, context.getString(R.string.error_retrieving_data))
         val backgroundColor = ContextCompat.getColor(context, R.color.black)
-        // Corrected line:
         views.setInt(R.id.widget_layout, "setBackgroundColor", backgroundColor)
         appWidgetManager.updateAppWidget(appWidgetId, views)
         scheduleWidgetUpdate(context)
@@ -183,12 +192,6 @@ class EcsWidget : AppWidgetProvider() {
 }
 
 class WidgetUpdateReceiver : android.content.BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        EcsWidget.updateWidget(context)
-    }
-}
-
-class WidgetRefreshReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         EcsWidget.updateWidget(context)
     }

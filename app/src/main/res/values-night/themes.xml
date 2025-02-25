@@ -3,5 +3,16 @@
     <style name="Base.Theme.Wierdesol" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your dark theme here. -->
         <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <item name="android:titleTextStyle">@style/ActionBarTitleTextStyle</item>
+    </style>
+
+    <style name="Theme.Wierdesol" parent="Base.Theme.Wierdesol" />
+
+    <!-- Custom style for the action bar title -->
+    <style name="ActionBarTitleTextStyle" parent="TextAppearance.Material3.ActionBar.Title">
+        <item name="android:textSize">36sp</item>
+        <item name="android:textColor">@color/orange</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-condensed</item>
     </style>
 </resources>

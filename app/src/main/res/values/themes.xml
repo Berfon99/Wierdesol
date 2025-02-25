@@ -1,9 +1,18 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.Wierdesol" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.Wierdesol" parent="Theme.Material3.Light.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="android:titleTextStyle">@style/ActionBarTitleTextStyle</item>
     </style>
 
     <style name="Theme.Wierdesol" parent="Base.Theme.Wierdesol" />
+
+    <!-- Custom style for the action bar title -->
+    <style name="ActionBarTitleTextStyle" parent="TextAppearance.Material3.ActionBar.Title">
+        <item name="android:textSize">36sp</item>
+        <item name="android:textColor">@color/orange</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-condensed</item>
+    </style>
 </resources>
