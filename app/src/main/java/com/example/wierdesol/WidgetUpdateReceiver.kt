@@ -119,17 +119,27 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
                     callback(data)
                 } else {
                     Timber.e("Error: ${response.code()}")
+                    try {
+                        Timber.e("Error body: ${response.errorBody()?.string()}")
+                    } catch (e: Exception) {
+                        Timber.e("Error reading error body: $e")
+                    }
                     callback(null)
                 }
             }
 
             override fun onFailure(call: Call<ResolResponse>, t: Throwable) {
                 Timber.e(t, "Connection failed")
+                if (t is java.net.SocketException) {
+                    Timber.e("SocketException: ${t.message}")
+                }
+                if (t is java.net.SocketTimeoutException) {
+                    Timber.e("SocketTimeoutException: ${t.message}")
+                }
                 callback(null)
             }
         })
     }
-
     private fun extractSensorValues(data: ResolResponse): Map<String, Pair<String, Double>> {
         Timber.d("extractSensorValues called")
         val sensorValues = mutableMapOf<String, Pair<String, Double>>()
