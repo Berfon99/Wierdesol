@@ -196,7 +196,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         views.setTextViewText(R.id.widget_ecs_value, errorMsg)
         views.setTextViewText(R.id.widget_capteurs_value, errorMsg)
 
-        val backgroundColor = ContextCompat.getColor(context, R.color.black)
+        val backgroundColor = ContextCompat.getColor(context, R.color.red)
         views.setInt(R.id.ecs_section, "setBackgroundColor", backgroundColor)
         views.setInt(R.id.capteurs_section, "setBackgroundColor", backgroundColor)
 
