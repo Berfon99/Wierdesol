@@ -210,9 +210,11 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
     ): Int {
         val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
         val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
-        Timber.d("minWidth: $minWidth")
+        val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+        Timber.d("minWidth: $minWidth, minHeight: $minHeight")
 
-        val thresholdDp = 400
+        // Convert dp to pixels for comparison
+        val thresholdDp = 120
         val thresholdPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             thresholdDp.toFloat(),
@@ -220,7 +222,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         ).toInt()
         Timber.d("thresholdPx: $thresholdPx")
 
-        return if (minWidth >= thresholdPx) {
+        return if (minWidth > minHeight) {
             Timber.d("Using horizontal layout")
             R.layout.widget_layout_horizontal
         } else {
