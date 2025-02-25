@@ -1,15 +1,12 @@
 package com.example.wierdesol
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
-import android.os.SystemClock
-import android.preference.PreferenceManager
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
 import timber.log.Timber
 
 class EcsWidget : AppWidgetProvider() {
@@ -25,8 +22,6 @@ class EcsWidget : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         Timber.d("onUpdate called")
-        // No need to update the widget here anymore
-        scheduleWidgetUpdate(context)
         // Trigger an immediate update for each widget instance
         for (appWidgetId in appWidgetIds) {
             triggerImmediateUpdate(context)
@@ -54,33 +49,7 @@ class EcsWidget : AppWidgetProvider() {
 
     private fun triggerImmediateUpdate(context: Context) {
         Timber.d("triggerImmediateUpdate called")
-        val intent = Intent(context, WidgetUpdateReceiver::class.java)
-        intent.action = "com.example.wierdesol.WIDGET_UPDATE"
-        context.sendBroadcast(intent)
-    }
-
-    private fun scheduleWidgetUpdate(context: Context) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, WidgetUpdateReceiver::class.java)
-        intent.action = "com.example.wierdesol.WIDGET_UPDATE" // Use the new action here
-        val pendingIntent = PendingIntent.getBroadcast(
-            context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        // Cancel any existing alarms
-        alarmManager.cancel(pendingIntent)
-
-        val sharedPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
-        val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
-        val refreshRateMillis = refreshRateMinutes * 60 * 1000
-
-        Timber.d("Scheduling widget update every $refreshRateMinutes minutes")
-
-        alarmManager.setInexactRepeating(
-            AlarmManager.ELAPSED_REALTIME,
-            SystemClock.elapsedRealtime() + refreshRateMillis,
-            refreshRateMillis,
-            pendingIntent
-        )
+        val updateWorkRequest = OneTimeWorkRequest.Builder(WidgetUpdateWorker::class.java).build()
+        WorkManager.getInstance(context).enqueue(updateWorkRequest)
     }
 }

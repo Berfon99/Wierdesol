@@ -20,11 +20,14 @@ import retrofit2.Callback
 import retrofit2.Response
 import timber.log.Timber
 import java.lang.reflect.Method
+import androidx.work.WorkManager
+import androidx.work.PeriodicWorkRequest
+import java.util.concurrent.TimeUnit
+
 
 class WidgetUpdateReceiver : BroadcastReceiver() {
 
     private lateinit var sharedPreferences: SharedPreferences
-    private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
     override fun onReceive(context: Context, intent: Intent) {
         Timber.d("WidgetUpdateReceiver onReceive called")
@@ -32,13 +35,25 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
         if (intent.action == "com.example.wierdesol.PREFERENCE_CHANGED") {
             // Handle preference change
-            updateAppWidget(context)
+            scheduleWidgetUpdate(context)
         } else if (intent.action == "com.example.wierdesol.WIDGET_UPDATE") {
             // Handle regular update
             updateAppWidget(context)
         }
     }
-
+    private fun scheduleWidgetUpdate(context: Context) {
+        Timber.d("scheduleWidgetUpdate called")
+        val workManager = WorkManager.getInstance(context)
+        val sharedPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+        val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
+        val refreshRateMillis = refreshRateMinutes * 60 * 1000
+        val updateWorkRequest = PeriodicWorkRequest.Builder(
+            WidgetUpdateWorker::class.java,
+            refreshRateMillis,
+            TimeUnit.MILLISECONDS
+        ).build()
+        workManager.enqueue(updateWorkRequest)
+    }
     private fun updateAppWidget(context: Context) {
         Timber.d("updateAppWidget called")
         val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -80,7 +95,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         appWidgetId: Int
     ) {
         Timber.d("fetchDataAndUpdateWidget called")
-        coroutineScope.launch {
+        CoroutineScope(Dispatchers.Main).launch {
             fetchData { data ->
                 if (data != null) {
                     val sensorValues = extractSensorValues(data)
