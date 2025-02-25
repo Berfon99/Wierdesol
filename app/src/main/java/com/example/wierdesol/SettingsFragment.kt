@@ -1,5 +1,6 @@
 package com.example.wierdesol
 
+import android.content.Intent // Add this import statement
 import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.preference.EditTextPreference
@@ -30,6 +31,10 @@ class SettingsFragment : PreferenceFragmentCompat(),
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         if (key == "refresh_rate") {
             updateRefreshRateSummary()
+
+            // Broadcast the preference change to update the widget
+            val intent = Intent("com.xc.air3upgrader.PREFERENCE_CHANGED")
+            requireContext().sendBroadcast(intent)
         }
     }
 

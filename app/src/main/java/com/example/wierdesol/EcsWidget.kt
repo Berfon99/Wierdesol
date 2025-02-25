@@ -8,7 +8,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.net.Uri
 import android.os.SystemClock
 import android.preference.PreferenceManager
 import android.widget.RemoteViews
@@ -20,7 +19,6 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import timber.log.Timber
-import java.lang.reflect.Method
 
 class EcsWidget : AppWidgetProvider() {
 
@@ -158,10 +156,17 @@ class EcsWidget : AppWidgetProvider() {
     private fun scheduleWidgetUpdate(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, WidgetUpdateReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Cancel any existing alarms
+        alarmManager.cancel(pendingIntent)
 
         val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
         val refreshRateMillis = refreshRateMinutes * 60 * 1000
+
+        Timber.d("Scheduling widget update every $refreshRateMinutes minutes")
 
         alarmManager.setInexactRepeating(
             AlarmManager.ELAPSED_REALTIME,
@@ -170,7 +175,6 @@ class EcsWidget : AppWidgetProvider() {
             pendingIntent
         )
     }
-
     companion object {
         fun updateWidget(context: Context) {
             val intent = Intent(context, EcsWidget::class.java)
@@ -178,21 +182,9 @@ class EcsWidget : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
             val appWidgetManager = AppWidgetManager.getInstance(context)
             for (appWidgetId in ids) {
-                appWidgetManager.updateAppWidget(appWidgetId, views)
+                val widget = EcsWidget()
+                widget.updateAppWidget(context, appWidgetManager, appWidgetId)
             }
         }
-    }
-
-    fun RemoteViews.getLayoutId(): Int {
-        val clazz = RemoteViews::class.java
-        val method: Method = clazz.getDeclaredMethod("getLayoutId")
-        method.isAccessible = true
-        return method.invoke(this) as Int
-    }
-}
-
-class WidgetUpdateReceiver : android.content.BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        EcsWidget.updateWidget(context)
     }
 }
