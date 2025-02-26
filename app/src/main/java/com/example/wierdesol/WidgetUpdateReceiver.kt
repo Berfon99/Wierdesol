@@ -41,18 +41,48 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             updateAppWidget(context)
         }
     }
+// In WidgetUpdateReceiver.kt
+
     private fun scheduleWidgetUpdate(context: Context) {
         Timber.d("scheduleWidgetUpdate called")
-        val workManager = WorkManager.getInstance(context)
-        val sharedPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, WidgetUpdateReceiver::class.java)
+        intent.action = "com.example.wierdesol.WIDGET_UPDATE"
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Cancel any existing alarms
+        alarmManager.cancel(pendingIntent)
+
+        // Get refresh rate from preferences
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
         val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
         val refreshRateMillis = refreshRateMinutes * 60 * 1000
-        val updateWorkRequest = PeriodicWorkRequest.Builder(
-            WidgetUpdateWorker::class.java,
-            refreshRateMillis,
-            TimeUnit.MILLISECONDS
-        ).build()
-        workManager.enqueue(updateWorkRequest)
+
+        // Schedule new alarm
+        val triggerTime = System.currentTimeMillis() + refreshRateMillis
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        } else {
+            alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        }
+
+        Timber.d("Alarm scheduled for widget update in $refreshRateMinutes minutes")
     }
     private fun updateAppWidget(context: Context) {
         Timber.d("updateAppWidget called")
@@ -107,36 +137,45 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         }
     }
 
+// In WidgetUpdateReceiver.kt
+
+// In WidgetUpdateReceiver.kt
+
     private fun fetchData(callback: (ResolResponse?) -> Unit) {
         Timber.d("fetchData called")
+
+        // Add timeout to avoid hanging
         RetrofitClient.instance.getLiveData().enqueue(object : Callback<ResolResponse> {
             override fun onResponse(call: Call<ResolResponse>, response: Response<ResolResponse>) {
-                Timber.d("response.isSuccessful: ${response.isSuccessful}")
-                Timber.d("response.code(): ${response.code()}")
                 if (response.isSuccessful) {
                     val data = response.body()
-                    Timber.d("Data received: $data")
-                    callback(data)
+                    if (data != null && data.headersets.isNotEmpty() &&
+                        data.headersets[0].packets.size > 1) {
+                        Timber.d("Valid data received")
+                        callback(data)
+                    } else {
+                        Timber.e("Received empty or incomplete data")
+                        // Use null to indicate we should use cached data
+                        callback(null)
+                    }
                 } else {
                     Timber.e("Error: ${response.code()}")
-                    try {
-                        Timber.e("Error body: ${response.errorBody()?.string()}")
-                    } catch (e: Exception) {
-                        Timber.e("Error reading error body: $e")
-                    }
+                    // Use null to indicate we should use cached data
                     callback(null)
                 }
             }
 
             override fun onFailure(call: Call<ResolResponse>, t: Throwable) {
                 Timber.e(t, "Connection failed")
-                if (t is java.net.SocketException) {
-                    Timber.e("SocketException: ${t.message}")
-                }
-                if (t is java.net.SocketTimeoutException) {
-                    Timber.e("SocketTimeoutException: ${t.message}")
-                }
+                // Use null to indicate we should use cached data
                 callback(null)
+
+                // Schedule the next update despite the error
+                // This ensures updates continue even after failures
+                val context = call.request().tag() as? Context
+                if (context != null) {
+                    scheduleWidgetUpdate(context)
+                }
             }
         })
     }
@@ -215,15 +254,24 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
-        val views = RemoteViews(context.packageName, R.layout.widget_layout)
-        val errorMsg = context.getString(R.string.error_retrieving_data)
+        val views = RemoteViews(context.packageName, getLayoutIdForWidget(context, appWidgetManager, appWidgetId))
 
-        views.setTextViewText(R.id.widget_ecs_value, errorMsg)
-        views.setTextViewText(R.id.widget_capteurs_value, errorMsg)
+        // Use cached values instead of showing error
+        val lastEcsTemperature = sharedPreferences.getString(EcsWidget.PREF_ECS_TEMPERATURE, "N/A") ?: "N/A"
+        val lastCapteursTemperature = sharedPreferences.getString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "N/A") ?: "N/A"
 
-        val backgroundColor = ContextCompat.getColor(context, R.color.red)
-        views.setInt(R.id.ecs_section, "setBackgroundColor", backgroundColor)
-        views.setInt(R.id.capteurs_section, "setBackgroundColor", backgroundColor)
+        views.setTextViewText(R.id.widget_ecs_value, lastEcsTemperature)
+        views.setTextViewText(R.id.widget_capteurs_value, lastCapteursTemperature)
+
+        // Optional: Add some indicator that data might be stale
+        // views.setTextViewText(R.id.update_time, "Last update: ${getTimeAgo()}")
+
+        // Keep the last colors or use neutral colors instead of error red
+        val ecsTemp = lastEcsTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
+        val capteursTemp = lastCapteursTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
+
+        views.setInt(R.id.ecs_section, "setBackgroundColor", getEcsBackgroundColor(ecsTemp, context))
+        views.setInt(R.id.capteurs_section, "setBackgroundColor", getCapteursBackgroundColor(capteursTemp, context))
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
