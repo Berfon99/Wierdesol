@@ -1,5 +1,6 @@
 package com.example.wierdesol
 
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -11,11 +12,12 @@ object RetrofitClient {
     private const val BASE_URL = "https://wierde.vbus.io/"
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS) // Increased timeout
-        .readTimeout(60, TimeUnit.SECONDS)    // Increased timeout
-        .writeTimeout(60, TimeUnit.SECONDS)   // Increased timeout
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES)) // Configure connection pool
         .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY // Log request and response details
+            level = HttpLoggingInterceptor.Level.BODY
         })
         .addInterceptor { chain ->
             val request = chain.request()
