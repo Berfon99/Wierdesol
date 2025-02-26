@@ -23,6 +23,7 @@ import java.lang.reflect.Method
 import androidx.work.WorkManager
 import androidx.work.PeriodicWorkRequest
 import java.util.concurrent.TimeUnit
+import android.app.AlarmManager
 
 
 class WidgetUpdateReceiver : BroadcastReceiver() {
@@ -68,21 +69,51 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         // Schedule new alarm
         val triggerTime = System.currentTimeMillis() + refreshRateMillis
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            alarmManager.setExactAndAllowWhileIdle(
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                // Android 12 (API 31) and higher
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                    )
+                } else {
+                    // Fall back to inexact alarm if permission not granted
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                    )
+                    Timber.w("Cannot schedule exact alarms - permission not granted. Using inexact alarm instead.")
+                }
+            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                // Android 6.0 to 11
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            } else {
+                // Pre-Android 6.0
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            }
+            Timber.d("Alarm scheduled for widget update in $refreshRateMinutes minutes")
+        } catch (e: SecurityException) {
+            // Handle case where we don't have permission
+            Timber.e(e, "SecurityException when scheduling alarm - permission may be needed")
+            // Fall back to inexact alarm
+            alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 triggerTime,
                 pendingIntent
             )
-        } else {
-            alarmManager.setExact(
-                AlarmManager.RTC_WAKEUP,
-                triggerTime,
-                pendingIntent
-            )
+            Timber.d("Falling back to inexact alarm for widget update")
         }
-
-        Timber.d("Alarm scheduled for widget update in $refreshRateMinutes minutes")
     }
     private fun updateAppWidget(context: Context) {
         Timber.d("updateAppWidget called")
