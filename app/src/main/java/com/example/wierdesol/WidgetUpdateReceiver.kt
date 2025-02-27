@@ -36,6 +36,19 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         // Initialize SharedPreferences
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
 
+        // Get AppWidgetManager and widget IDs upfront
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val componentName = ComponentName(context, EcsWidget::class.java)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+
+        // Check if we have any widgets to update
+        if (appWidgetIds.isEmpty()) {
+            Timber.d("No widgets found to update")
+            return
+        }
+
+        Timber.d("Found ${appWidgetIds.size} widgets to update")
+
         when (intent.action) {
             "com.example.wierdesol.PREFERENCE_CHANGED" -> {
                 Timber.d("Preferences changed, rescheduling updates")
@@ -43,28 +56,66 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
                 cancelWidgetUpdates(context)
                 scheduleWidgetUpdate(context)
                 // Also update widget immediately with current data
-                updateAppWidget(context)
+                updateWidgetsWithStoredData(context, appWidgetManager, appWidgetIds)
             }
             "com.example.wierdesol.WIDGET_UPDATE" -> {
                 Timber.d("Widget update requested")
-                // Update widget with current data
-                updateAppWidget(context)
-                // Reschedule for next update to maintain the cycle
+                // Update widgets immediately with stored data
+                updateWidgetsWithStoredData(context, appWidgetManager, appWidgetIds)
+                // Schedule next update
                 scheduleWidgetUpdate(context)
+
+                // Additionally fetch fresh data if available
+                fetchDataForWidgets(context, appWidgetManager, appWidgetIds)
             }
             Intent.ACTION_BOOT_COMPLETED -> {
-                Timber.d("Boot completed, checking for widgets")
-                // Check if any widgets are active and restart updates if needed
-                val appWidgetManager = AppWidgetManager.getInstance(context)
-                val componentName = ComponentName(context, EcsWidget::class.java)
-                val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
-
-                if (appWidgetIds.isNotEmpty()) {
-                    Timber.d("Widgets found after reboot, restarting updates")
-                    updateAppWidget(context)
-                    scheduleWidgetUpdate(context)
-                }
+                Timber.d("Boot completed, updating widgets and scheduling updates")
+                updateWidgetsWithStoredData(context, appWidgetManager, appWidgetIds)
+                scheduleWidgetUpdate(context)
             }
+        }
+    }
+
+    private fun updateWidgetsWithStoredData(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        Timber.d("updateWidgetsWithStoredData called")
+
+        // Get stored temperature values
+        val ecsTemperature = sharedPreferences.getString(EcsWidget.PREF_ECS_TEMPERATURE, "N/A") ?: "N/A"
+        val capteursTemperature = sharedPreferences.getString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "N/A") ?: "N/A"
+
+        Timber.d("Retrieved from SharedPreferences: ECS=$ecsTemperature, Capteurs=$capteursTemperature")
+
+        // Update each widget with stored data
+        for (appWidgetId in appWidgetIds) {
+            val views = RemoteViews(context.packageName, getLayoutIdForWidget(context, appWidgetManager, appWidgetId))
+
+            // Set temperature values
+            views.setTextViewText(R.id.widget_ecs_value, ecsTemperature)
+            views.setTextViewText(R.id.widget_capteurs_value, capteursTemperature)
+
+            // Set background colors based on temperature values
+            val ecsTemp = ecsTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
+            val capteursTemp = capteursTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
+
+            views.setInt(R.id.ecs_section, "setBackgroundColor", getEcsBackgroundColor(ecsTemp, context))
+            views.setInt(R.id.capteurs_section, "setBackgroundColor", getCapteursBackgroundColor(capteursTemp, context))
+
+            // Set click intent to open MainActivity
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            views.setOnClickPendingIntent(views.getLayoutId(), pendingIntent)
+
+            // Update the widget
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+            Timber.d("Widget $appWidgetId updated with stored data")
         }
     }
 
@@ -139,6 +190,49 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             Timber.d("Falling back to inexact alarm for widget update")
         }
     }
+
+    private fun fetchDataForWidgets(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        Timber.d("fetchDataForWidgets called")
+        RetrofitClient.instance.getLiveData().enqueue(object : Callback<ResolResponse> {
+            override fun onResponse(call: Call<ResolResponse>, response: Response<ResolResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val data = response.body()!!
+                    if (data.headersets.isNotEmpty() && data.headersets[0].packets.size > 1) {
+                        val sensorValues = extractSensorValues(data)
+
+                        // Save values to SharedPreferences
+                        val ecsValue = sensorValues["ecs"]?.first ?: "N/A"
+                        val capteursValue = sensorValues["capteurs"]?.first ?: "N/A"
+
+                        sharedPreferences.edit()
+                            .putString(EcsWidget.PREF_ECS_TEMPERATURE, ecsValue)
+                            .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, capteursValue)
+                            .apply()
+
+                        // Update widgets with new data
+                        for (appWidgetId in appWidgetIds) {
+                            updateWidgetWithValues(context, appWidgetManager, appWidgetId, sensorValues)
+                        }
+
+                        Timber.d("Widgets updated with fresh data")
+                    } else {
+                        Timber.e("Received empty or incomplete data")
+                    }
+                } else {
+                    Timber.e("Error fetching data: ${response.code()}")
+                }
+            }
+
+            override fun onFailure(call: Call<ResolResponse>, t: Throwable) {
+                Timber.e(t, "Connection failed when fetching data for widgets")
+            }
+        })
+    }
+
     private fun updateAppWidget(context: Context) {
         Timber.d("updateAppWidget called")
         val appWidgetManager = AppWidgetManager.getInstance(context)

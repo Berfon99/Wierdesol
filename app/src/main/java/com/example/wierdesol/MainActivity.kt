@@ -103,13 +103,39 @@ class MainActivity : AppCompatActivity() {
                 Timber.d(getString(R.string.new_data_analysis_attempt))
                 analyzeData(data)
 
-                // Add this section to notify widgets of the data update
-                val widgetUpdateIntent = Intent("com.example.wierdesol.WIDGET_UPDATE")
+                // Extract and save temperatures for widget access
+                extractAndSaveTemperatures(data)
+
+                // Use explicit intent to update widgets more reliably
+                val widgetUpdateIntent = Intent(this, WidgetUpdateReceiver::class.java)
+                widgetUpdateIntent.action = "com.example.wierdesol.WIDGET_UPDATE"
                 sendBroadcast(widgetUpdateIntent)
-                Timber.d("Sent broadcast to update widgets after data refresh")
+                Timber.d("Sent explicit broadcast to update widgets after data refresh")
             } else {
                 Timber.d(getString(R.string.data_not_available))
             }
+        }
+    }
+    private fun extractAndSaveTemperatures(data: ResolResponse) {
+        // Find the packet with the correct data (packet 1 in this case)
+        val correctPacket = data.headersets.getOrNull(0)?.packets?.getOrNull(1)
+
+        if (correctPacket != null) {
+            // Search for values in the correct packet
+            val sensorValues = correctPacket.fieldValues.associateBy { it.fieldIndex }
+
+            // Get ECS and Capteurs temperatures
+            val ecsValue = sensorValues[4]?.value ?: "N/A"
+            val capteursValue = sensorValues[0]?.value ?: "N/A"
+
+            // Save to SharedPreferences for the widget to access
+            val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
+            sharedPreferences.edit()
+                .putString(EcsWidget.PREF_ECS_TEMPERATURE, "${ecsValue}°C")
+                .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "${capteursValue}°C")
+                .apply()
+
+            Timber.d("Saved temperatures to SharedPreferences: ECS=${ecsValue}°C, Capteurs=${capteursValue}°C")
         }
     }
     internal fun fetchData(callback: (ResolResponse?) -> Unit) {
