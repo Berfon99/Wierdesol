@@ -264,7 +264,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
 
     private fun getEcsBackgroundColor(temperature: Double, context: Context): Int {
         return when {
-            temperature > 41 -> ContextCompat.getColor(context, R.color.green)
+            temperature > 40 -> ContextCompat.getColor(context, R.color.green)
             temperature >= 37 -> ContextCompat.getColor(context, R.color.orange)
             else -> ContextCompat.getColor(context, R.color.black)
         }
