@@ -64,12 +64,17 @@ class EcsWidget : AppWidgetProvider() {
         context.sendBroadcast(intent)
     }
 
+// In EcsWidget.kt - Improve the widget update scheduling
+
     private fun scheduleWidgetUpdate(context: Context) {
-        Timber.d("scheduleWidgetUpdate called")
+        Timber.d("scheduleWidgetUpdate called in EcsWidget")
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, WidgetUpdateReceiver::class.java)
         intent.action = "com.example.wierdesol.WIDGET_UPDATE"
+
+        // Attach context as tag for error handling
+        intent.putExtra("context_package", context.packageName)
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -83,22 +88,53 @@ class EcsWidget : AppWidgetProvider() {
         val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
         val refreshRateMillis = refreshRateMinutes * 60 * 1000
 
-        // Schedule repeating alarm
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + refreshRateMillis,
-                pendingIntent
-            )
-        } else {
-            alarmManager.setExact(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + refreshRateMillis,
-                pendingIntent
-            )
-        }
+        try {
+            // For Android 12 and above (API 31+)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + refreshRateMillis,
+                        pendingIntent
+                    )
+                } else {
+                    // Fall back to inexact alarm if permission not granted
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + refreshRateMillis,
+                        pendingIntent
+                    )
+                    Timber.w("Using inexact alarm - permission not granted for exact alarms")
+                }
+            }
+            // For Android 6.0 to 11
+            else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    System.currentTimeMillis() + refreshRateMillis,
+                    pendingIntent
+                )
+            }
+            // For older Android versions
+            else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    System.currentTimeMillis() + refreshRateMillis,
+                    pendingIntent
+                )
+            }
 
-        Timber.d("Alarm scheduled for widget update in $refreshRateMinutes minutes")
+            Timber.d("Alarm scheduled for widget update in $refreshRateMinutes minutes")
+        } catch (e: SecurityException) {
+            Timber.e(e, "SecurityException when scheduling alarm")
+            // Fall back to inexact alarm
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + refreshRateMillis,
+                pendingIntent
+            )
+            Timber.d("Falling back to inexact alarm due to security exception")
+        }
     }
 
     private fun cancelWidgetUpdates(context: Context) {

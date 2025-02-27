@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceFragmentCompat
+import timber.log.Timber
 
 class SettingsFragment : PreferenceFragmentCompat(),
     SharedPreferences.OnSharedPreferenceChangeListener {
@@ -32,9 +33,11 @@ class SettingsFragment : PreferenceFragmentCompat(),
         if (key == "refresh_rate") {
             updateRefreshRateSummary()
 
-            // Broadcast the preference change to update the widget
-            val intent = Intent("com.xc.air3upgrader.PREFERENCE_CHANGED")
+            // Fix: Broadcast the preference change with the correct action
+            val intent = Intent("com.example.wierdesol.PREFERENCE_CHANGED")
             requireContext().sendBroadcast(intent)
+
+            Timber.d("Preferences changed: refresh_rate = ${sharedPreferences?.getString(key, "10")}")
         }
     }
 

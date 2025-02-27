@@ -95,17 +95,23 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+// In MainActivity.kt - Add a broadcast to update widgets after data refresh
+
     private fun fetchDataAndRefresh() {
         fetchData { data ->
             if (data != null) {
                 Timber.d(getString(R.string.new_data_analysis_attempt))
                 analyzeData(data)
+
+                // Add this section to notify widgets of the data update
+                val widgetUpdateIntent = Intent("com.example.wierdesol.WIDGET_UPDATE")
+                sendBroadcast(widgetUpdateIntent)
+                Timber.d("Sent broadcast to update widgets after data refresh")
             } else {
                 Timber.d(getString(R.string.data_not_available))
             }
         }
     }
-
     private fun fetchData(callback: (ResolResponse?) -> Unit) {
         RetrofitClient.instance.getLiveData().enqueue(object : Callback<ResolResponse> {
             override fun onResponse(call: Call<ResolResponse>, response: Response<ResolResponse>) {
