@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    private fun fetchData(callback: (ResolResponse?) -> Unit) {
+    internal fun fetchData(callback: (ResolResponse?) -> Unit) {
         RetrofitClient.instance.getLiveData().enqueue(object : Callback<ResolResponse> {
             override fun onResponse(call: Call<ResolResponse>, response: Response<ResolResponse>) {
                 if (response.isSuccessful) {

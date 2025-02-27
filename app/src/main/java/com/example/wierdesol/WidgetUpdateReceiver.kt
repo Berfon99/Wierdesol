@@ -67,7 +67,6 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             }
         }
     }
-    // In WidgetUpdateReceiver.kt
 
     private fun scheduleWidgetUpdate(context: Context) {
         Timber.d("scheduleWidgetUpdate called")
@@ -193,46 +192,32 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         }
     }
 
-// In WidgetUpdateReceiver.kt
+    private fun fetchData(callback: (ResolResponse?) -> Unit) {
+        Timber.d("fetchData called in WidgetUpdateReceiver")
 
-// In WidgetUpdateReceiver.kt
-
-    override fun onReceive(context: Context, intent: Intent) {
-        Timber.d("WidgetUpdateReceiver onReceive called with action: ${intent.action}")
-
-        // Initialize SharedPreferences
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
-
-        when (intent.action) {
-            "com.example.wierdesol.PREFERENCE_CHANGED" -> {
-                Timber.d("Preferences changed, rescheduling updates")
-                // Cancel existing alarms and reschedule with new settings
-                cancelWidgetUpdates(context)
-                scheduleWidgetUpdate(context)
-                // Also update widget immediately with current data
-                updateAppWidget(context)
-            }
-            "com.example.wierdesol.WIDGET_UPDATE" -> {
-                Timber.d("Widget update requested")
-                // Update widget with current data
-                updateAppWidget(context)
-                // Reschedule for next update to maintain the cycle
-                scheduleWidgetUpdate(context)
-            }
-            Intent.ACTION_BOOT_COMPLETED -> {
-                Timber.d("Boot completed, checking for widgets")
-                // Check if any widgets are active and restart updates if needed
-                val appWidgetManager = AppWidgetManager.getInstance(context)
-                val componentName = ComponentName(context, EcsWidget::class.java)
-                val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
-
-                if (appWidgetIds.isNotEmpty()) {
-                    Timber.d("Widgets found after reboot, restarting updates")
-                    updateAppWidget(context)
-                    scheduleWidgetUpdate(context)
+        RetrofitClient.instance.getLiveData().enqueue(object : Callback<ResolResponse> {
+            override fun onResponse(call: Call<ResolResponse>, response: Response<ResolResponse>) {
+                if (response.isSuccessful) {
+                    val data = response.body()
+                    if (data != null && data.headersets.isNotEmpty() &&
+                        data.headersets[0].packets.size > 1) {
+                        Timber.d("Valid data received in WidgetUpdateReceiver")
+                        callback(data)
+                    } else {
+                        Timber.e("Received empty or incomplete data in WidgetUpdateReceiver")
+                        callback(null)
+                    }
+                } else {
+                    Timber.e("Error in WidgetUpdateReceiver: ${response.code()}")
+                    callback(null)
                 }
             }
-        }
+
+            override fun onFailure(call: Call<ResolResponse>, t: Throwable) {
+                Timber.e(t, "Connection failed in WidgetUpdateReceiver")
+                callback(null)
+            }
+        })
     }
 
     private fun cancelWidgetUpdates(context: Context) {
@@ -253,6 +238,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             Timber.d("Existing widget updates canceled")
         }
     }
+
 
     private fun extractSensorValues(data: ResolResponse): Map<String, Pair<String, Double>> {
         Timber.d("extractSensorValues called")
