@@ -101,6 +101,43 @@ class MainActivity : AppCompatActivity() {
         // Check if we should fetch data based on network settings
         if (!NetworkUtils.shouldFetchData(this)) {
             Timber.d("Skipping data fetch due to network settings (WiFi Only)")
+
+            // Get WiFi Only preference status
+            val wifiOnlyEnabled = sharedPreferences.getBoolean("wifi_only", false)
+
+            // If WiFi Only is enabled and we're not fetching data (meaning no WiFi),
+            // update display to show "NoWifi"
+            if (wifiOnlyEnabled) {
+                // Create sensor objects with "NoWifi" values
+                val noWifiLeftSensors = listOf(
+                    Sensor("Capteurs", "NoWifi"),
+                    Sensor("Piscine", "NoWifi"),
+                    Sensor("Extérieur", "NoWifi")
+                )
+
+                val noWifiRightSensors = listOf(
+                    Sensor("ECS", "NoWifi"),
+                    Sensor("Tampon", "NoWifi"),
+                    Sensor("Intérieur", "NoWifi")
+                )
+
+                // Update the RecyclerViews
+                updateSensorLists(noWifiLeftSensors, noWifiRightSensors)
+
+                // Also update SharedPreferences for widgets
+                sharedPreferences.edit()
+                    .putString(EcsWidget.PREF_ECS_TEMPERATURE, "NoWifi")
+                    .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "NoWifi")
+                    .apply()
+
+                // Send broadcast to update widgets
+                val widgetUpdateIntent = Intent(this, WidgetUpdateReceiver::class.java)
+                widgetUpdateIntent.action = "com.example.wierdesol.WIDGET_UPDATE"
+                sendBroadcast(widgetUpdateIntent)
+
+                Timber.d("Updated displays to show NoWifi status")
+            }
+
             return
         }
         fetchData { data ->
