@@ -111,7 +111,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
                 Intent(context, MainActivity::class.java),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
-            views.setOnClickPendingIntent(views.getLayoutId(), pendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_layout, pendingIntent)
 
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -253,7 +253,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            views.setOnClickPendingIntent(views.getLayoutId(), pendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_layout, pendingIntent)
             Timber.d("PendingIntent set on widget_layout")
 
             val lastEcsTemperature = sharedPreferences.getString(EcsWidget.PREF_ECS_TEMPERATURE, "N/A") ?: "N/A"
