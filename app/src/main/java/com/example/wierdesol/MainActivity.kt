@@ -98,6 +98,11 @@ class MainActivity : AppCompatActivity() {
 // In MainActivity.kt - Add a broadcast to update widgets after data refresh
 
     private fun fetchDataAndRefresh() {
+        // Check if we should fetch data based on network settings
+        if (!NetworkUtils.shouldFetchData(this)) {
+            Timber.d("Skipping data fetch due to network settings (WiFi Only)")
+            return
+        }
         fetchData { data ->
             if (data != null) {
                 Timber.d(getString(R.string.new_data_analysis_attempt))

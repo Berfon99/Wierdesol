@@ -6,4 +6,10 @@
         android:defaultValue="10"
         android:inputType="number"
         android:summary="@string/refresh_rate_summary" />
+
+    <CheckBoxPreference
+        android:key="wifi_only"
+        android:title="WiFi Only"
+        android:summary="Only fetch data when connected to WiFi"
+        android:defaultValue="false" />
 </PreferenceScreen>

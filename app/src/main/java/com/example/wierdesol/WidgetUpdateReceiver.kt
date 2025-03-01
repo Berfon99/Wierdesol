@@ -197,6 +197,11 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         appWidgetIds: IntArray
     ) {
         Timber.d("fetchDataForWidgets called")
+        // Check if we should fetch data based on network settings
+        if (!NetworkUtils.shouldFetchData(context)) {
+            Timber.d("Skipping widget data fetch due to network settings (WiFi Only)")
+            return
+        }
         RetrofitClient.instance.getLiveData().enqueue(object : Callback<ResolResponse> {
             override fun onResponse(call: Call<ResolResponse>, response: Response<ResolResponse>) {
                 if (response.isSuccessful && response.body() != null) {
@@ -275,7 +280,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
     ) {
         Timber.d("fetchDataAndUpdateWidget called")
         CoroutineScope(Dispatchers.Main).launch {
-            fetchData { data ->
+            fetchData(context) { data ->
                 if (data != null) {
                     val sensorValues = extractSensorValues(data)
                     updateWidgetWithValues(context, appWidgetManager, appWidgetId, sensorValues)
@@ -286,9 +291,14 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun fetchData(callback: (ResolResponse?) -> Unit) {
+    private fun fetchData(context: Context, callback: (ResolResponse?) -> Unit) {
         Timber.d("fetchData called in WidgetUpdateReceiver")
-
+        // Check if we should fetch data based on network settings
+        if (!NetworkUtils.shouldFetchData(context)) {
+            Timber.d("Skipping data fetch due to network settings (WiFi Only)")
+            callback(null)
+            return
+        }
         RetrofitClient.instance.getLiveData().enqueue(object : Callback<ResolResponse> {
             override fun onResponse(call: Call<ResolResponse>, response: Response<ResolResponse>) {
                 if (response.isSuccessful) {
