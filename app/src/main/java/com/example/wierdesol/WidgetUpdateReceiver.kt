@@ -7,7 +7,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.Bundle
 import android.preference.PreferenceManager
 import android.util.TypedValue
 import android.widget.RemoteViews
@@ -20,11 +19,6 @@ import retrofit2.Callback
 import retrofit2.Response
 import timber.log.Timber
 import java.lang.reflect.Method
-import androidx.work.WorkManager
-import androidx.work.PeriodicWorkRequest
-import java.util.concurrent.TimeUnit
-import android.app.AlarmManager
-
 
 class WidgetUpdateReceiver : BroadcastReceiver() {
 
@@ -53,8 +47,8 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             "com.example.wierdesol.PREFERENCE_CHANGED" -> {
                 Timber.d("Preferences changed, rescheduling updates")
                 // Cancel existing alarms and reschedule with new settings
-                cancelWidgetUpdates(context)
-                scheduleWidgetUpdate(context)
+                WidgetScheduler.cancelUpdates(context)
+                WidgetScheduler.scheduleUpdate(context)
                 // Also update widget immediately with current data
                 updateWidgetsWithStoredData(context, appWidgetManager, appWidgetIds)
             }
@@ -63,7 +57,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
                 // Update widgets immediately with stored data
                 updateWidgetsWithStoredData(context, appWidgetManager, appWidgetIds)
                 // Schedule next update
-                scheduleWidgetUpdate(context)
+                WidgetScheduler.scheduleUpdate(context)
 
                 // Additionally fetch fresh data if available
                 fetchDataForWidgets(context, appWidgetManager, appWidgetIds)
@@ -71,7 +65,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             Intent.ACTION_BOOT_COMPLETED -> {
                 Timber.d("Boot completed, updating widgets and scheduling updates")
                 updateWidgetsWithStoredData(context, appWidgetManager, appWidgetIds)
-                scheduleWidgetUpdate(context)
+                WidgetScheduler.scheduleUpdate(context)
             }
         }
     }
@@ -116,78 +110,6 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
             Timber.d("Widget $appWidgetId updated with stored data")
-        }
-    }
-
-    private fun scheduleWidgetUpdate(context: Context) {
-        Timber.d("scheduleWidgetUpdate called")
-
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, WidgetUpdateReceiver::class.java)
-        intent.action = "com.example.wierdesol.WIDGET_UPDATE"
-
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        // Cancel any existing alarms
-        alarmManager.cancel(pendingIntent)
-
-        // Get refresh rate from preferences
-        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
-        val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
-        val refreshRateMillis = refreshRateMinutes * 60 * 1000
-
-        // Schedule new alarm
-        val triggerTime = System.currentTimeMillis() + refreshRateMillis
-
-        try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                // Android 12 (API 31) and higher
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                    )
-                } else {
-                    // Fall back to inexact alarm if permission not granted
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                    )
-                    Timber.w("Cannot schedule exact alarms - permission not granted. Using inexact alarm instead.")
-                }
-            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                // Android 6.0 to 11
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-                )
-            } else {
-                // Pre-Android 6.0
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-                )
-            }
-            Timber.d("Alarm scheduled for widget update in $refreshRateMinutes minutes")
-        } catch (e: SecurityException) {
-            // Handle case where we don't have permission
-            Timber.e(e, "SecurityException when scheduling alarm - permission may be needed")
-            // Fall back to inexact alarm
-            alarmManager.set(
-                AlarmManager.RTC_WAKEUP,
-                triggerTime,
-                pendingIntent
-            )
-            Timber.d("Falling back to inexact alarm for widget update")
         }
     }
 
@@ -324,26 +246,6 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         })
     }
 
-    private fun cancelWidgetUpdates(context: Context) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, WidgetUpdateReceiver::class.java)
-        intent.action = "com.example.wierdesol.WIDGET_UPDATE"
-
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
-        )
-
-        if (pendingIntent != null) {
-            alarmManager.cancel(pendingIntent)
-            pendingIntent.cancel()
-            Timber.d("Existing widget updates canceled")
-        }
-    }
-
-
     private fun extractSensorValues(data: ResolResponse): Map<String, Pair<String, Double>> {
         Timber.d("extractSensorValues called")
         val sensorValues = mutableMapOf<String, Pair<String, Double>>()
@@ -427,9 +329,6 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
 
         views.setTextViewText(R.id.widget_ecs_value, lastEcsTemperature)
         views.setTextViewText(R.id.widget_capteurs_value, lastCapteursTemperature)
-
-        // Optional: Add some indicator that data might be stale
-        // views.setTextViewText(R.id.update_time, "Last update: ${getTimeAgo()}")
 
         // Keep the last colors or use neutral colors instead of error red
         val ecsTemp = lastEcsTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
