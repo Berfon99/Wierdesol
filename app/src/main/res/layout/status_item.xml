@@ -12,10 +12,9 @@
         android:layout_weight="1"
         android:textSize="16sp" />
 
-    <CheckBox
-        android:id="@+id/statusCheckbox"
+    <TextView
+        android:id="@+id/statusValue"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:clickable="false"
-        android:focusable="false" />
+        android:textSize="16sp" />
 </LinearLayout>

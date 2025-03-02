@@ -112,13 +112,9 @@ class MainActivity : AppCompatActivity() {
             "Tampon" to 5, // field_index 5
             "Intérieur" to 11, // field_index 11
             "Extérieur" to 7, // field_index 7
-            "Piscine" to 10 // field_index 10
-        )
-
-        // Status indicators with their indexes
-        val statusIndicators = mapOf(
-            "Solar Pump" to 40,  // field_index 40
-            "Filtration" to 45   // field_index 45
+            "Piscine" to 10, // field_index 10
+            "Solar Pump" to 40, // field_index 40
+            "Filtration" to 45 // field_index 45
         )
 
         // Find the packet with the correct data (packet 1 in this case)
@@ -139,26 +135,25 @@ class MainActivity : AppCompatActivity() {
             val rightSensorList = mutableListOf<Sensor>()
             val statusList = mutableListOf<StatusIndicator>()
 
-            // Add temperature sensors
+            // Add sensors and status indicators
             for ((name, index) in sensors) {
-                var value = sensorValues[index]?.value ?: getString(R.string.value_not_available)
-                // Add "°C" if the sensor is a temperature sensor
+                val value = sensorValues[index]?.value ?: getString(R.string.value_not_available)
                 if (name == "ECS" || name == "Capteurs" || name == "Tampon" ||
                     name == "Intérieur" || name == "Extérieur" || name == "Piscine") {
-                    value += "°C"
+                    // Add "°C" if the sensor is a temperature sensor
+                    val sensor = Sensor(name, "$value°C")
+                    when (name) {
+                        "Capteurs", "Piscine", "Extérieur" -> leftSensorList.add(sensor)
+                        "ECS", "Tampon", "Intérieur" -> rightSensorList.add(sensor)
+                    }
+                } else {
+                    // Add status indicators
+                    val sensor = Sensor(name, value)
+                    when (name) {
+                        "Solar Pump" -> leftSensorList.add(sensor)
+                        "Filtration" -> rightSensorList.add(sensor)
+                    }
                 }
-                val sensor = Sensor(name, value)
-                when (name) {
-                    "Capteurs", "Piscine", "Extérieur" -> leftSensorList.add(sensor)
-                    "ECS", "Tampon", "Intérieur" -> rightSensorList.add(sensor)
-                }
-            }
-
-            // Add status indicators
-            for ((name, index) in statusIndicators) {
-                val rawValue = sensorValues[index]?.value ?: "0"
-                val isActive = rawValue == "100"
-                statusList.add(StatusIndicator(name, isActive, rawValue))
             }
 
             // Update the RecyclerViews
@@ -174,6 +169,7 @@ class MainActivity : AppCompatActivity() {
             )
         } else {
             Timber.e("Correct packet not found")
+            updateStatusList(emptyList())
         }
     }
 
@@ -245,7 +241,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private fun setupLinkTextView() {
         val fullText = getString(R.string.schema)
         val spannableString = SpannableString(fullText)
@@ -272,7 +267,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun extractAndSaveTemperatures(data: ResolResponse) {
         // Find the packet with the correct data (packet 1 in this case)
         val correctPacket = data.headersets.getOrNull(0)?.packets?.getOrNull(1)
@@ -314,9 +308,6 @@ class MainActivity : AppCompatActivity() {
             }
         })
     }
-
-
-
     private fun updateSensorLists(leftSensorList: List<Sensor>, rightSensorList: List<Sensor>) {
         leftSensorAdapter.sensors = leftSensorList
         rightSensorAdapter.sensors = rightSensorList

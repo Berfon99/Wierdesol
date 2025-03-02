@@ -42,7 +42,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/rightRecyclerView"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/linkTextView" />
+        app:layout_constraintTop_toBottomOf="@+id/linkTextView"
+        app:layout_constraintVertical_bias="0.0" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rightRecyclerView"
@@ -78,21 +79,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/container_background"
-            android:padding="8dp"/>
-
-        <!-- Ajout des CheckBox ici -->
-        <CheckBox
-            android:id="@+id/solarPumpCheckBox"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Solar Pump"
-            android:padding="8dp"/>
-
-        <CheckBox
-            android:id="@+id/filtrationCheckBox"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Filtration"
             android:padding="8dp"/>
     </LinearLayout>
 
