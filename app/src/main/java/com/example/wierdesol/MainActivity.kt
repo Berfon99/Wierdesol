@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rightSensorAdapter: SensorAdapter
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var statusRecyclerView: RecyclerView
+    private lateinit var statusAdapter: StatusAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +45,7 @@ class MainActivity : AppCompatActivity() {
 
         leftRecyclerView = binding.leftRecyclerView
         rightRecyclerView = binding.rightRecyclerView
+        statusRecyclerView = binding.statusRecyclerView  // Add this line
 
         // Initialize Timber
         val isDebug = true
@@ -53,10 +56,15 @@ class MainActivity : AppCompatActivity() {
         // Initialize the RecyclerViews
         leftRecyclerView.layoutManager = LinearLayoutManager(this)
         rightRecyclerView.layoutManager = LinearLayoutManager(this)
+        statusRecyclerView.layoutManager = LinearLayoutManager(this)  // Add this line
+
         leftSensorAdapter = SensorAdapter(emptyList())
         rightSensorAdapter = SensorAdapter(emptyList())
+        statusAdapter = StatusAdapter(emptyList())  // Add this line
+
         leftRecyclerView.adapter = leftSensorAdapter
         rightRecyclerView.adapter = rightSensorAdapter
+        statusRecyclerView.adapter = statusAdapter  // Add this line
 
         // Initialize the refresh button
         binding.refreshButton.setOnClickListener {
@@ -69,33 +77,105 @@ class MainActivity : AppCompatActivity() {
         // Initialize the link and make it clickable
         setupLinkTextView()
     }
-    private fun setupLinkTextView() {
-        val fullText = getString(R.string.schema)
-        val spannableString = SpannableString(fullText)
 
-        val clickableSpan = object : ClickableSpan() {
-            override fun onClick(widget: View) {
-                val url = "https://wierde.vbus.io/dlx/live/view/99"
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                startActivity(intent)
+    private fun updateStatusList(statusList: List<StatusIndicator>) {
+        statusAdapter.statusIndicators = statusList
+        statusAdapter.notifyDataSetChanged()
+    }
+
+    private fun analyzeData(data: ResolResponse?) {
+        if (data == null || data.headersets.isEmpty()) {
+            // Handle the case where data is null or headersets is empty
+            val errorSensor = Sensor(getString(R.string.data_retrieval_error), "")
+            updateSensorLists(listOf(errorSensor), emptyList())
+            updateStatusList(emptyList())
+            return
+        }
+
+        // Log the size of headersets
+        Timber.d("headersets size: ${data.headersets.size}")
+
+        // Log the size of packets in the first headerset
+        if (data.headersets.isNotEmpty()) {
+            Timber.d("packets size in first headerset: ${data.headersets[0].packets.size}")
+
+            // Log the size of fieldValues in each packet
+            data.headersets[0].packets.forEachIndexed { index, packet ->
+                Timber.d("fieldValues size in packet $index: ${packet.fieldValues.size}")
             }
         }
 
-        spannableString.setSpan(clickableSpan, 0, fullText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        binding.linkTextView.text = spannableString
-        binding.linkTextView.movementMethod = LinkMovementMethod.getInstance()
-    }
-    private fun fetchDataPeriodically() {
-        coroutineScope.launch {
-            while (true) {
-                fetchDataAndRefresh()
-                val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
-                val refreshRateMillis = refreshRateMinutes * 60 * 1000
-                delay(refreshRateMillis)
+        // List of sensors to retrieve with their indexes
+        val sensors = mapOf(
+            "ECS" to 4, // Temperature Sensor 5 -> ECS
+            "Capteurs" to 0, // field_index 0
+            "Tampon" to 5, // field_index 5
+            "Intérieur" to 11, // field_index 11
+            "Extérieur" to 7, // field_index 7
+            "Piscine" to 10 // field_index 10
+        )
+
+        // Status indicators with their indexes
+        val statusIndicators = mapOf(
+            "Solar Pump" to 40,  // field_index 40
+            "Filtration" to 45   // field_index 45
+        )
+
+        // Find the packet with the correct data (packet 1 in this case)
+        val correctPacket = data.headersets[0].packets.getOrNull(1)
+
+        if (correctPacket != null) {
+            // Search for values in the correct packet
+            val sensorValues = correctPacket.fieldValues.associateBy { it.fieldIndex }
+
+            // Log the first 10 fieldValues
+            Timber.d("First 10 fieldValues:")
+            sensorValues.entries.take(10).forEach { entry ->
+                Timber.d("fieldIndex: ${entry.key}, value: ${entry.value.value}")
             }
+
+            // Build the display of retrieved values
+            val leftSensorList = mutableListOf<Sensor>()
+            val rightSensorList = mutableListOf<Sensor>()
+            val statusList = mutableListOf<StatusIndicator>()
+
+            // Add temperature sensors
+            for ((name, index) in sensors) {
+                var value = sensorValues[index]?.value ?: getString(R.string.value_not_available)
+                // Add "°C" if the sensor is a temperature sensor
+                if (name == "ECS" || name == "Capteurs" || name == "Tampon" ||
+                    name == "Intérieur" || name == "Extérieur" || name == "Piscine") {
+                    value += "°C"
+                }
+                val sensor = Sensor(name, value)
+                when (name) {
+                    "Capteurs", "Piscine", "Extérieur" -> leftSensorList.add(sensor)
+                    "ECS", "Tampon", "Intérieur" -> rightSensorList.add(sensor)
+                }
+            }
+
+            // Add status indicators
+            for ((name, index) in statusIndicators) {
+                val rawValue = sensorValues[index]?.value ?: "0"
+                val isActive = rawValue == "100"
+                statusList.add(StatusIndicator(name, isActive, rawValue))
+            }
+
+            // Update the RecyclerViews
+            updateSensorLists(leftSensorList, rightSensorList)
+            updateStatusList(statusList)
+
+            Timber.d(
+                getString(
+                    R.string.data_retrieved,
+                    (leftSensorList + rightSensorList).joinToString("\n") +
+                            "\nStatus Indicators: " + statusList.joinToString("\n")
+                )
+            )
+        } else {
+            Timber.e("Correct packet not found")
         }
     }
-// In MainActivity.kt - Add a broadcast to update widgets after data refresh
 
     private fun fetchDataAndRefresh() {
         // Check if we should fetch data based on network settings
@@ -121,8 +201,14 @@ class MainActivity : AppCompatActivity() {
                     Sensor("Intérieur", "NoWifi")
                 )
 
+                val noWifiStatusIndicators = listOf(
+                    StatusIndicator("Solar Pump", false, "NoWifi"),
+                    StatusIndicator("Filtration", false, "NoWifi")
+                )
+
                 // Update the RecyclerViews
                 updateSensorLists(noWifiLeftSensors, noWifiRightSensors)
+                updateStatusList(noWifiStatusIndicators)
 
                 // Also update SharedPreferences for widgets
                 sharedPreferences.edit()
@@ -158,6 +244,35 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+
+    private fun setupLinkTextView() {
+        val fullText = getString(R.string.schema)
+        val spannableString = SpannableString(fullText)
+
+        val clickableSpan = object : ClickableSpan() {
+            override fun onClick(widget: View) {
+                val url = "https://wierde.vbus.io/dlx/live/view/99"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            }
+        }
+
+        spannableString.setSpan(clickableSpan, 0, fullText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        binding.linkTextView.text = spannableString
+        binding.linkTextView.movementMethod = LinkMovementMethod.getInstance()
+    }
+    private fun fetchDataPeriodically() {
+        coroutineScope.launch {
+            while (true) {
+                fetchDataAndRefresh()
+                val refreshRateMinutes = sharedPreferences.getString("refresh_rate", "10")?.toLongOrNull() ?: 10
+                val refreshRateMillis = refreshRateMinutes * 60 * 1000
+                delay(refreshRateMillis)
+            }
+        }
+    }
+
     private fun extractAndSaveTemperatures(data: ResolResponse) {
         // Find the packet with the correct data (packet 1 in this case)
         val correctPacket = data.headersets.getOrNull(0)?.packets?.getOrNull(1)
@@ -200,79 +315,8 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun analyzeData(data: ResolResponse?) {
-        if (data == null || data.headersets.isEmpty()) {
-            // Handle the case where data is null or headersets is empty
-            val errorSensor = Sensor(getString(R.string.data_retrieval_error), "")
-            updateSensorLists(listOf(errorSensor), emptyList())
-            return
-        }
 
-        // Log the size of headersets
-        Timber.d("headersets size: ${data.headersets.size}")
 
-        // Log the size of packets in the first headerset
-        if (data.headersets.isNotEmpty()) {
-            Timber.d("packets size in first headerset: ${data.headersets[0].packets.size}")
-
-            // Log the size of fieldValues in each packet
-            data.headersets[0].packets.forEachIndexed { index, packet ->
-                Timber.d("fieldValues size in packet $index: ${packet.fieldValues.size}")
-            }
-        }
-
-        // List of sensors to retrieve with their indexes
-        val sensors = mapOf(
-            "ECS" to 4, // Temperature Sensor 5 -> ECS
-            "Capteurs" to 0, // field_index 0
-            "Tampon" to 5, // field_index 5
-            "Intérieur" to 11, // field_index 11
-            "Extérieur" to 7, // field_index 7
-            "Piscine" to 10 // field_index 10
-        )
-
-        // Find the packet with the correct data (packet 1 in this case)
-        val correctPacket = data.headersets[0].packets.getOrNull(1)
-
-        if (correctPacket != null) {
-            // Search for values in the correct packet
-            val sensorValues = correctPacket.fieldValues.associateBy { it.fieldIndex }
-
-            // Log the first 10 fieldValues
-            Timber.d("First 10 fieldValues:")
-            sensorValues.entries.take(10).forEach { entry ->
-                Timber.d("fieldIndex: ${entry.key}, value: ${entry.value.value}")
-            }
-
-            // Build the display of retrieved values
-            val leftSensorList = mutableListOf<Sensor>()
-            val rightSensorList = mutableListOf<Sensor>()
-
-            for ((name, index) in sensors) {
-                var value = sensorValues[index]?.value ?: getString(R.string.value_not_available)
-                // Add "°C" if the sensor is a temperature sensor
-                if (name == "ECS" || name == "Capteurs" || name == "Tampon" || name == "Intérieur" || name == "Extérieur" || name == "Piscine") {
-                    value += "°C"
-                }
-                val sensor = Sensor(name, value)
-                when (name) {
-                    "Capteurs", "Piscine", "Extérieur" -> leftSensorList.add(sensor)
-                    "ECS", "Tampon", "Intérieur" -> rightSensorList.add(sensor)
-                }
-            }
-
-            // Update the RecyclerViews
-            updateSensorLists(leftSensorList, rightSensorList)
-            Timber.d(
-                getString(
-                    R.string.data_retrieved,
-                    (leftSensorList + rightSensorList).joinToString("\n")
-                )
-            )
-        } else {
-            Timber.e("Correct packet not found")
-        }
-    }
     private fun updateSensorLists(leftSensorList: List<Sensor>, rightSensorList: List<Sensor>) {
         leftSensorAdapter.sensors = leftSensorList
         rightSensorAdapter.sensors = rightSensorList

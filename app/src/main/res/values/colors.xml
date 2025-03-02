@@ -5,4 +5,6 @@
     <color name="green">#689F38</color>
     <color name="orange">#F57C00</color>
     <color name="red">#D32F2F</color>
+    <color name="blue">#1976D2</color>
+    <color name="grey">#ABACAD</color>
 </resources>

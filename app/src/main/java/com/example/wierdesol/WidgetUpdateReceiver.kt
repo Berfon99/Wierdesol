@@ -272,14 +272,14 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         return when {
             temperature > 40 -> ContextCompat.getColor(context, R.color.green)
             temperature >= 37 -> ContextCompat.getColor(context, R.color.orange)
-            else -> ContextCompat.getColor(context, R.color.black)
+            else -> ContextCompat.getColor(context, R.color.grey)
         }
     }
 
     private fun getCapteursBackgroundColor(temperature: Double, context: Context): Int {
         return when {
             temperature < 100 -> ContextCompat.getColor(context, R.color.green)
-            else -> ContextCompat.getColor(context, R.color.black)
+            else -> ContextCompat.getColor(context, R.color.red)
         }
     }
 
