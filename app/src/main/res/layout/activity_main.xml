@@ -79,6 +79,21 @@
             android:layout_height="wrap_content"
             android:background="@drawable/container_background"
             android:padding="8dp"/>
+
+        <!-- Ajout des CheckBox ici -->
+        <CheckBox
+            android:id="@+id/solarPumpCheckBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Solar Pump"
+            android:padding="8dp"/>
+
+        <CheckBox
+            android:id="@+id/filtrationCheckBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Filtration"
+            android:padding="8dp"/>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
