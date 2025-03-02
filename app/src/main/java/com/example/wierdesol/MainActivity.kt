@@ -210,6 +210,7 @@ class MainActivity : AppCompatActivity() {
                 sharedPreferences.edit()
                     .putString(EcsWidget.PREF_ECS_TEMPERATURE, "NoWifi")
                     .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "NoWifi")
+                    .putString(EcsWidget.PREF_PISCINE_TEMPERATURE, "NoWifi")
                     .apply()
 
                 // Send broadcast to update widgets
@@ -278,15 +279,17 @@ class MainActivity : AppCompatActivity() {
             // Get ECS and Capteurs temperatures
             val ecsValue = sensorValues[4]?.value ?: "N/A"
             val capteursValue = sensorValues[0]?.value ?: "N/A"
+            val piscineValue = sensorValues[10]?.value ?: "N/A"
 
             // Save to SharedPreferences for the widget to access
             val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
             sharedPreferences.edit()
                 .putString(EcsWidget.PREF_ECS_TEMPERATURE, "${ecsValue}°C")
                 .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "${capteursValue}°C")
+                .putString(EcsWidget.PREF_PISCINE_TEMPERATURE, "${piscineValue}°C")
                 .apply()
 
-            Timber.d("Saved temperatures to SharedPreferences: ECS=${ecsValue}°C, Capteurs=${capteursValue}°C")
+            Timber.d("Saved temperatures to SharedPreferences: ECS=${ecsValue}°C, Capteurs=${capteursValue}°C , Piscine=${piscineValue}°C")
         }
     }
     internal fun fetchData(callback: (ResolResponse?) -> Unit) {

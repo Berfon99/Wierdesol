@@ -80,8 +80,9 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         // Get stored temperature values
         val ecsTemperature = sharedPreferences.getString(EcsWidget.PREF_ECS_TEMPERATURE, "N/A") ?: "N/A"
         val capteursTemperature = sharedPreferences.getString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "N/A") ?: "N/A"
+        val piscineTemperature = sharedPreferences.getString(EcsWidget.PREF_PISCINE_TEMPERATURE, "N/A") ?: "N/A"
 
-        Timber.d("Retrieved from SharedPreferences: ECS=$ecsTemperature, Capteurs=$capteursTemperature")
+        Timber.d("Retrieved from SharedPreferences: ECS=$ecsTemperature, Capteurs=$capteursTemperature, Piscine=$piscineTemperature")
 
         // Update each widget with stored data
         for (appWidgetId in appWidgetIds) {
@@ -90,13 +91,18 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             // Set temperature values
             views.setTextViewText(R.id.widget_ecs_value, ecsTemperature)
             views.setTextViewText(R.id.widget_capteurs_value, capteursTemperature)
+            views.setTextViewText(R.id.widget_piscine_value, piscineTemperature)
+
 
             // Set background colors based on temperature values
             val ecsTemp = ecsTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
             val capteursTemp = capteursTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
+            val piscineTemp = piscineTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
 
             views.setInt(R.id.ecs_section, "setBackgroundColor", getEcsBackgroundColor(ecsTemp, context))
             views.setInt(R.id.capteurs_section, "setBackgroundColor", getCapteursBackgroundColor(capteursTemp, context))
+            views.setInt(R.id.piscine_section, "setBackgroundColor", getPiscineBackgroundColor(piscineTemp, context))
+
 
             // Set click intent to open MainActivity
             val pendingIntent = PendingIntent.getActivity(
@@ -134,10 +140,13 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
                         // Save values to SharedPreferences
                         val ecsValue = sensorValues["ecs"]?.first ?: "N/A"
                         val capteursValue = sensorValues["capteurs"]?.first ?: "N/A"
+                        val piscineValue = sensorValues["piscine"]?.first ?: "N/A"
+
 
                         sharedPreferences.edit()
                             .putString(EcsWidget.PREF_ECS_TEMPERATURE, ecsValue)
                             .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, capteursValue)
+                            .putString(EcsWidget.PREF_PISCINE_TEMPERATURE, piscineValue)
                             .apply()
 
                         // Update widgets with new data
@@ -185,9 +194,10 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
 
             val lastEcsTemperature = sharedPreferences.getString(EcsWidget.PREF_ECS_TEMPERATURE, "N/A") ?: "N/A"
             val lastCapteursTemperature = sharedPreferences.getString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "N/A") ?: "N/A"
+            val lastPiscineTemperature = sharedPreferences.getString(EcsWidget.PREF_PISCINE_TEMPERATURE, "N/A") ?: "N/A"
             views.setTextViewText(R.id.widget_ecs_value, lastEcsTemperature)
             views.setTextViewText(R.id.widget_capteurs_value, lastCapteursTemperature)
-
+            views.setTextViewText(R.id.widget_piscine_value, lastPiscineTemperature)
             appWidgetManager.updateAppWidget(appWidgetId, views)
             Timber.d("appWidgetManager.updateAppWidget called")
 
@@ -263,6 +273,10 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             val capteursValue = fieldValues[0]?.value ?: "N/A"
             val capteursTemperature = capteursValue.toDoubleOrNull() ?: 0.0
             sensorValues["capteurs"] = Pair("$capteursValue°C", capteursTemperature)
+
+            val piscineValue = fieldValues[5]?.value ?: "N/A"
+            val piscineTemperature = piscineValue.toDoubleOrNull() ?: 0.0
+            sensorValues["piscine"] = Pair("$piscineValue°C", piscineTemperature)
         }
 
         return sensorValues
@@ -279,6 +293,13 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
     private fun getCapteursBackgroundColor(temperature: Double, context: Context): Int {
         return when {
             temperature < 100 -> ContextCompat.getColor(context, R.color.green)
+            else -> ContextCompat.getColor(context, R.color.red)
+        }
+    }
+
+    private fun getPiscineBackgroundColor(temperature: Double, context: Context): Int {
+        return when {
+            temperature > 22 -> ContextCompat.getColor(context, R.color.green)
             else -> ContextCompat.getColor(context, R.color.red)
         }
     }
@@ -301,10 +322,15 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         val capteursTemperatureValue = sensorValues["capteurs"]?.second ?: 0.0
         views.setTextViewText(R.id.widget_capteurs_value, capteursTemperature)
 
-        Timber.d("Saving to SharedPreferences: ECS=$ecsTemperature, Capteurs=$capteursTemperature")
+        val piscineTemperature = sensorValues["piscine"]?.first ?: "N/A"
+        val piscineTemperatureValue = sensorValues["piscine"]?.second ?: 0.0
+        views.setTextViewText(R.id.widget_piscine_value, piscineTemperature)
+
+        Timber.d("Saving to SharedPreferences: ECS=$ecsTemperature, Capteurs=$capteursTemperature, Piscine=$piscineTemperature")
         sharedPreferences.edit()
             .putString(EcsWidget.PREF_ECS_TEMPERATURE, ecsTemperature)
             .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, capteursTemperature)
+            .putString(EcsWidget.PREF_PISCINE_TEMPERATURE, piscineTemperature)
             .apply()
 
         val ecsBackgroundColor = getEcsBackgroundColor(ecsTemperatureValue, context)
@@ -312,6 +338,9 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
 
         val capteursBackgroundColor = getCapteursBackgroundColor(capteursTemperatureValue, context)
         views.setInt(R.id.capteurs_section, "setBackgroundColor", capteursBackgroundColor)
+
+        val piscineBackgroundColor = getPiscineBackgroundColor(piscineTemperatureValue, context)
+        views.setInt(R.id.piscine_section, "setBackgroundColor", piscineBackgroundColor)
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
@@ -326,16 +355,20 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         // Use cached values instead of showing error
         val lastEcsTemperature = sharedPreferences.getString(EcsWidget.PREF_ECS_TEMPERATURE, "N/A") ?: "N/A"
         val lastCapteursTemperature = sharedPreferences.getString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "N/A") ?: "N/A"
+        val lastPiscineTemperature = sharedPreferences.getString(EcsWidget.PREF_PISCINE_TEMPERATURE, "N/A") ?: "N/A"
 
         views.setTextViewText(R.id.widget_ecs_value, lastEcsTemperature)
         views.setTextViewText(R.id.widget_capteurs_value, lastCapteursTemperature)
+        views.setTextViewText(R.id.widget_piscine_value, lastPiscineTemperature)
 
         // Keep the last colors or use neutral colors instead of error red
         val ecsTemp = lastEcsTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
         val capteursTemp = lastCapteursTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
+        val piscineTemp = lastPiscineTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
 
         views.setInt(R.id.ecs_section, "setBackgroundColor", getEcsBackgroundColor(ecsTemp, context))
         views.setInt(R.id.capteurs_section, "setBackgroundColor", getCapteursBackgroundColor(capteursTemp, context))
+        views.setInt(R.id.piscine_section, "setBackgroundColor", getPiscineBackgroundColor(piscineTemp, context))
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }

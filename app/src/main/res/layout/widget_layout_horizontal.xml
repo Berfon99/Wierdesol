@@ -68,4 +68,39 @@
             android:textSize="18sp"
             android:textStyle="bold" />
     </LinearLayout>
+
+    <!-- Divider -->
+    <LinearLayout
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="#FFFFFF"
+        android:orientation="vertical" />
+
+    <!-- piscine Section -->
+    <LinearLayout
+        android:id="@+id/piscine_section"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_piscine_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Piscine"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_piscine_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Loading..."
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

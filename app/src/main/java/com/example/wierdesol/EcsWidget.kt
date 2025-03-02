@@ -11,6 +11,7 @@ class EcsWidget : AppWidgetProvider() {
     companion object {
         const val PREF_ECS_TEMPERATURE = "pref_ecs_temperature"
         const val PREF_CAPTEURS_TEMPERATURE = "pref_capteurs_temperature"
+        const val PREF_PISCINE_TEMPERATURE = "pref_piscine_temperature"
     }
 
     override fun onUpdate(
