@@ -101,8 +101,11 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
 
             views.setInt(R.id.ecs_section, "setBackgroundColor", getEcsBackgroundColor(ecsTemp, context))
             views.setInt(R.id.capteurs_section, "setBackgroundColor", getCapteursBackgroundColor(capteursTemp, context))
-            views.setInt(R.id.piscine_section, "setBackgroundColor", getPiscineBackgroundColor(piscineTemp, context))
-
+            views.setInt(
+                R.id.piscine_section,
+                "setBackgroundColor",
+                getPiscineBackgroundColor(piscineTemp, filtrationStatus, context)
+            )
 
             // Set click intent to open MainActivity
             val pendingIntent = PendingIntent.getActivity(
@@ -277,11 +280,15 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             val piscineValue = fieldValues[10]?.value ?: "N/A"
             val piscineTemperature = piscineValue.toDoubleOrNull() ?: 0.0
             sensorValues["piscine"] = Pair("$piscineValue°C", piscineTemperature)
+
+            // Extract filtration value (index 45)
+            val filtrationValue = fieldValues[45]?.value ?: "0"
+            val filtrationStatus = filtrationValue.toDoubleOrNull() ?: 0.0
+            sensorValues["filtration"] = Pair(filtrationValue, filtrationStatus)
         }
 
         return sensorValues
     }
-
     private fun getEcsBackgroundColor(temperature: Double, context: Context): Int {
         return when {
             temperature > 40 -> ContextCompat.getColor(context, R.color.green)
@@ -297,8 +304,9 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun getPiscineBackgroundColor(temperature: Double, context: Context): Int {
+    private fun getPiscineBackgroundColor(temperature: Double, filtrationStatus: Double, context: Context): Int {
         return when {
+            filtrationStatus != 100.0 -> ContextCompat.getColor(context, R.color.grey)
             temperature > 22 -> ContextCompat.getColor(context, R.color.green)
             else -> ContextCompat.getColor(context, R.color.red)
         }
@@ -326,6 +334,9 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         val piscineTemperatureValue = sensorValues["piscine"]?.second ?: 0.0
         views.setTextViewText(R.id.widget_piscine_value, piscineTemperature)
 
+        // Get filtration status
+        val filtrationStatus = sensorValues["filtration"]?.second ?: 0.0
+
         Timber.d("Saving to SharedPreferences: ECS=$ecsTemperature, Capteurs=$capteursTemperature, Piscine=$piscineTemperature")
         sharedPreferences.edit()
             .putString(EcsWidget.PREF_ECS_TEMPERATURE, ecsTemperature)
@@ -339,7 +350,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         val capteursBackgroundColor = getCapteursBackgroundColor(capteursTemperatureValue, context)
         views.setInt(R.id.capteurs_section, "setBackgroundColor", capteursBackgroundColor)
 
-        val piscineBackgroundColor = getPiscineBackgroundColor(piscineTemperatureValue, context)
+        val piscineBackgroundColor = getPiscineBackgroundColor(piscineTemperatureValue, filtrationStatus, context)
         views.setInt(R.id.piscine_section, "setBackgroundColor", piscineBackgroundColor)
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -366,9 +377,12 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         val capteursTemp = lastCapteursTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
         val piscineTemp = lastPiscineTemperature.replace("°C", "").toDoubleOrNull() ?: 0.0
 
+        // Use 0 for filtration status on error (will use grey)
+        val filtrationStatus = 0.0
+
         views.setInt(R.id.ecs_section, "setBackgroundColor", getEcsBackgroundColor(ecsTemp, context))
         views.setInt(R.id.capteurs_section, "setBackgroundColor", getCapteursBackgroundColor(capteursTemp, context))
-        views.setInt(R.id.piscine_section, "setBackgroundColor", getPiscineBackgroundColor(piscineTemp, context))
+        views.setInt(R.id.piscine_section, "setBackgroundColor", getPiscineBackgroundColor(piscineTemp, filtrationStatus, context))
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
