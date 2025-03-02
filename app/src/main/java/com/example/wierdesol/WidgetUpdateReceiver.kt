@@ -274,7 +274,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             val capteursTemperature = capteursValue.toDoubleOrNull() ?: 0.0
             sensorValues["capteurs"] = Pair("$capteursValue°C", capteursTemperature)
 
-            val piscineValue = fieldValues[5]?.value ?: "N/A"
+            val piscineValue = fieldValues[10]?.value ?: "N/A"
             val piscineTemperature = piscineValue.toDoubleOrNull() ?: 0.0
             sensorValues["piscine"] = Pair("$piscineValue°C", piscineTemperature)
         }
