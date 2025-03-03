@@ -12,6 +12,7 @@ class EcsWidget : AppWidgetProvider() {
         const val PREF_ECS_TEMPERATURE = "pref_ecs_temperature"
         const val PREF_CAPTEURS_TEMPERATURE = "pref_capteurs_temperature"
         const val PREF_PISCINE_TEMPERATURE = "pref_piscine_temperature"
+        const val PREF_FILTRATION_STATUS = "filtration_status"
     }
 
     override fun onUpdate(

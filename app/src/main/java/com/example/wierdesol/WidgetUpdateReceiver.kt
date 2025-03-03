@@ -82,6 +82,9 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         val capteursTemperature = sharedPreferences.getString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, "N/A") ?: "N/A"
         val piscineTemperature = sharedPreferences.getString(EcsWidget.PREF_PISCINE_TEMPERATURE, "N/A") ?: "N/A"
 
+        // Add this line to get filtration status
+        val filtrationStatus = sharedPreferences.getFloat(EcsWidget.PREF_FILTRATION_STATUS, 0.0f).toDouble()
+
         Timber.d("Retrieved from SharedPreferences: ECS=$ecsTemperature, Capteurs=$capteursTemperature, Piscine=$piscineTemperature")
 
         // Update each widget with stored data
@@ -342,6 +345,7 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
             .putString(EcsWidget.PREF_ECS_TEMPERATURE, ecsTemperature)
             .putString(EcsWidget.PREF_CAPTEURS_TEMPERATURE, capteursTemperature)
             .putString(EcsWidget.PREF_PISCINE_TEMPERATURE, piscineTemperature)
+            .putFloat(EcsWidget.PREF_FILTRATION_STATUS, filtrationStatus.toFloat())
             .apply()
 
         val ecsBackgroundColor = getEcsBackgroundColor(ecsTemperatureValue, context)
