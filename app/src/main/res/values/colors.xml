@@ -6,5 +6,7 @@
     <color name="orange">#F57C00</color>
     <color name="red">#D32F2F</color>
     <color name="blue">#1976D2</color>
+    <color name="lightblue">#22B1AF</color>
+    <color name="gold">#DCD16C</color>
     <color name="grey">#ABACAD</color>
 </resources>

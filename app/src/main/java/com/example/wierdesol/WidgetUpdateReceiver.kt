@@ -294,8 +294,9 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
     }
     private fun getEcsBackgroundColor(temperature: Double, context: Context): Int {
         return when {
-            temperature > 40 -> ContextCompat.getColor(context, R.color.green)
-            temperature >= 37 -> ContextCompat.getColor(context, R.color.orange)
+            temperature > 38 -> ContextCompat.getColor(context, R.color.green)
+            temperature >= 36 -> ContextCompat.getColor(context, R.color.orange)
+            temperature < 36 -> ContextCompat.getColor(context, R.color.red)
             else -> ContextCompat.getColor(context, R.color.grey)
         }
     }
@@ -310,8 +311,10 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
     private fun getPiscineBackgroundColor(temperature: Double, filtrationStatus: Double, context: Context): Int {
         return when {
             filtrationStatus != 100.0 -> ContextCompat.getColor(context, R.color.grey)
-            temperature > 22 -> ContextCompat.getColor(context, R.color.green)
-            else -> ContextCompat.getColor(context, R.color.red)
+            temperature > 26 -> ContextCompat.getColor(context, R.color.gold)
+            temperature > 23 -> ContextCompat.getColor(context, R.color.green)
+            temperature > 20 -> ContextCompat.getColor(context, R.color.lightblue)
+            else -> ContextCompat.getColor(context, R.color.blue)
         }
     }
 
